@@ -1170,7 +1170,7 @@ def get_filename(args):
 
 
 def get_test_inputs(prompt_len, num_prompts, tokenizer):
-    prompts = ["Paris is the capital city of"]
+    prompts = ["Shanghai is the capital city of"]
     input_ids = tokenizer(prompts, padding="max_length",
                           max_length=prompt_len).input_ids
     return (input_ids[0],) * num_prompts
@@ -1281,7 +1281,7 @@ def add_parser_arguments(parser):
     parser.add_argument("--offload-dir", type=str, default="~/flexgen_offload_dir",
         help="The directory to offload tensors. ")
     parser.add_argument("--prompt-len", type=int, default=512)
-    parser.add_argument("--gen-len", type=int, default=32)
+    parser.add_argument("--gen-len", type=int, default=100)
     parser.add_argument("--cut-gen-len", type=int,
         help="Cut generation length for fast debugging.")
     parser.add_argument("--debug-mode", type=str,
@@ -1289,7 +1289,7 @@ def add_parser_arguments(parser):
     parser.add_argument("--gpu-batch-size", type=int, default=4)
     parser.add_argument("--num-gpu-batches", type=int, default=1)
     parser.add_argument("--percent", nargs="+", type=int,
-        default=[100, 0, 100, 0, 100, 0],
+        default=[100, 0, 50, 0, 100, 0],
         help="Six numbers. They are "
          "the percentage of weight on GPU, "
          "the percentage of weight on CPU, "
