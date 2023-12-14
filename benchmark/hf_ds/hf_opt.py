@@ -313,7 +313,7 @@ def run_generation(model_name, batch_size, prompt_len, gen_len, cut_gen_len,
     hidden_size = opt_config.hidden_bytes(batch_size, prompt_len + gen_len)
     log_str = write_benchmark_log(filename,
         opt_config.model_bytes(), cache_size, hidden_size,
-        gpu_peak_mem, projected, prefill_latency, prefill_throughput,
+        gpu_peak_mem, projected, -1, prefill_latency, prefill_throughput,
         decode_latency, decode_throughput, total_latency, total_throughput)
     if verbose >= 1:
         print(log_str)
