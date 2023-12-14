@@ -4,8 +4,10 @@ import subprocess
 import argparse
 from opt_model import OptModelConfig, solve, solve_lp
 from flexgen.opt_config import get_opt_config
-from flexgen.utils import GB, T, run_cmd
+from flexgen.utils import GB
 from flexgen.flex_opt import Policy
+
+from results_collector import store_entry
 
 
 def test_policy(args, policy: Policy):
@@ -60,10 +62,14 @@ def test_policy(args, policy: Policy):
             cc = 100 - cg
         new_percents = [int(wg), int(wc), int(cg), int(cc), int(ag), int(ac)]
         if (
-            sum([n != o for n, o in zip(new_percents, percents)]) == 0
+            delta != 0
+            and sum(  # delta is zero only for the first run
+                [n != o for n, o in zip(new_percents, percents)]
+            )
+            == 0
         ):  # nothing changed
             return None, 1, percents
-        log_file = f"auto_optim_{id}.log"
+        log_file = f"logs/auto_optim_{os.environ['SLURM_JOB_ID']}_{id}.log"
         command = cmd + f" --log-file {log_file}"
         command += " --percent " + " ".join(map(str, new_percents))
         if os.path.exists(log_file):
@@ -71,21 +77,33 @@ def test_policy(args, policy: Policy):
         print(f'Running command:"{command}"', flush=True)
 
         output = subprocess.run(command, shell=True, capture_output=True)
-        if output.stderr:
-            print(
-                "CUDA OOM Error encountered: {}".format(output.stderr.decode("utf-8")),
-                file=sys.stderr,
-                flush=True,
-            )
-            return None, 1, new_percents
-        if output.stdout:
-            lines = output.stdout.decode("utf-8").split("\n")
-            for line in lines:
-                if "total throughput: " in line:
-                    throughput = float(line.split()[-2])
-            print(f"tots = {throughput}", file=sys.stderr, flush=True)  # TODO remove
+        # if output.stderr:
+        #     print(
+        #         "CUDA out-of-memory Error",
+        #         # "CUDA out-of-memory Error encountered: {}".format(output.stderr.decode("utf-8")),
+        #         file=sys.stderr,
+        #         flush=True,
+        #     )
+        #     return None, 1, new_percents
+        # if output.stdout:
+        #     lines = output.stdout.decode("utf-8").split("\n")
+        #     for line in lines:
+        #         if "total throughput: " in line:
+        #             throughput = float(line.split()[-2])
+        #     print(f"Derived throughput: {throughput}", file=sys.stderr, flush=True)
+        #     return throughput, 0, new_percents
+        # print("Invalid output", output, file=sys.stderr, flush=True)
+
+        throughput = None
+        if os.path.exists(log_file):
+            with open(log_file, "r") as f:
+                for line in f.readlines():
+                    if "total throughput: " in line:
+                        throughput = float(line.split()[-2])
+        if throughput is not None:
+            print(f"Derived throughput: {throughput}", file=sys.stderr, flush=True)
             return throughput, 0, new_percents
-        print("Invalid output", output, file=sys.stderr, flush=True)
+        print("Log file not found", file=sys.stderr, flush=True)
         return None, 1, percents
 
     def better_result(result1, result2):
@@ -116,11 +134,13 @@ def test_policy(args, policy: Policy):
 
     percents = get_percents(policy)
     id = 0
-    best_results = run_benchmark(id, percents, 0)
+    base_results = run_benchmark(id, percents, 0)
+    print(f"Base results = {base_results}")
+    best_results = base_results
     delta, min_delta = 8, 2
     while True:
         id += 1
-        print("Running while loop for ID =", id, flush=True)
+        print(f"Running while loop for ID={id}, Delta={delta}", flush=True)
         curr_results = run_benchmark(id, best_results[2], delta)
         if curr_results[1] == 1:  # this optimization was not possible
             delta = delta / 2  # reduce delta
@@ -134,10 +154,11 @@ def test_policy(args, policy: Policy):
         if delta < min_delta:  # delta is too small
             break
 
-    print(f"best results = {best_results}")
+    print(f"Best results = {best_results}")
     print(
-        f"Optimal run command for reference: \"{cmd} --percent {' '.join(map(str, best_results[2]))}\""
+        f"Optimal run config with given constraints: \"{cmd} --percent {' '.join(map(str, best_results[2]))}\""
     )
+    return base_results, best_results
 
 
 if __name__ == "__main__":
@@ -173,4 +194,18 @@ if __name__ == "__main__":
     best_policy, max_throughput = solve(config, solve_lp, vars(args))
     print(f"theoretical throughput: {max_throughput:.2f} token/s")
     print("Identified best_policy:", best_policy)
-    test_policy(args, best_policy)
+    base_results, best_results = test_policy(args, best_policy)
+    log_entry = {
+        "job_id": os.environ["SLURM_JOB_ID"],
+        "cpu_threads": os.environ["SLURM_CPUS_PER_TASK"],
+        "gpus": os.environ["SLURM_GPUS_ON_NODE"],
+        "model_name": os.environ["MODEL_NAME"],
+        "gpu_mem": os.environ["GPU_MEM_CONTRAINT"],
+        "cpu_mem": os.environ["CPU_MEM_CONTRAINT"],
+        "base_throughput": base_results[0],
+        "improved_throughput": best_results[0],
+        "base_allocations": base_results[2],
+        "improved_allocations": best_results[2],
+    }
+    print("log_entry", log_entry)
+    store_entry(log_entry)
