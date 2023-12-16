@@ -18,7 +18,7 @@ class DiskSpeed:
             d=size.st_size//(end_timer-start_timer)
             os.remove('wrtcheck.txt')
             d=int(d)
-            return (str(d))
+            return d
         except:
             return 'error'
     def get_write_speed(self):
@@ -36,7 +36,7 @@ class DiskSpeed:
             d=size.st_size//(end_timer-start_timer)
             
             d=int(d)
-            return (str(d))
+            return d
         except:
             return "error"
                     
