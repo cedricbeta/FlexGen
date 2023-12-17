@@ -629,6 +629,7 @@ def run_flexgen_dist(args):
                f"cache size: {cache_size/GB:.3f} GB\t"
                f"hidden size (prefill): {hidden_size/GB:.3f} GB\n"
                f"peak gpu mem: {gpu_peak_mem / GB:.3f} GB\n"
+               f"peak cpu mem: {cpu_peak_mem / GB:.3f} GB\n"
                f"prefill latency: {prefill_latency:.2f} s\t"
                f"prefill throughput: {prefill_throughput:.2f} token/s\n"
                f"decode latency: {decode_latency:.2f} s\t"
