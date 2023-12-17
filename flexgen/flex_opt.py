@@ -1396,7 +1396,7 @@ def get_filename(args):
 
 
 def get_test_inputs(prompt_len, num_prompts, tokenizer):
-    prompts = ["Paris is the capital city of"]
+    prompts = ["Shanghai is the capital city of"]
     input_ids = tokenizer(
         prompts, padding="max_length", max_length=prompt_len
     ).input_ids
